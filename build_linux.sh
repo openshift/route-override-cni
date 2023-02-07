@@ -17,7 +17,7 @@ for d in $PLUGINS; do
 		plugin="$(basename "$d")"
 		if [ $plugin != "windows" ]; then
 			echo "  $plugin"
-			${GO:-go} build -o "${PWD}/bin/$plugin" "$@" ./"$d"
+			${GO:-go} build ${GOFLAGS} -o "${PWD}/bin/$plugin" "$@" ./"$d"
 		fi
 	fi
 done
