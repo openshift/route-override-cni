@@ -65,9 +65,9 @@ type IPAMArgs struct {
 }
 
 /*
-type RouteOverrideArgs struct {
-	types.CommonArgs
-}
+	type RouteOverrideArgs struct {
+		types.CommonArgs
+	}
 */
 func parseConf(data []byte, envArgs string) (*RouteOverrideConfig, error) {
 	conf := RouteOverrideConfig{FlushRoutes: false}
