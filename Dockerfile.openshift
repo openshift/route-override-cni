@@ -3,7 +3,6 @@ FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.19-openshift-4.13 AS 
 ADD . /usr/src/route-override
 WORKDIR /usr/src/route-override
 ENV CGO_ENABLED=0
-ENV GO111MODULE=off
 ENV VERSION=rhel8 COMMIT=unset
 RUN ./build_linux.sh
 WORKDIR /
@@ -12,7 +11,6 @@ FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.19-openshift-4.13 AS 
 ADD . /usr/src/route-override
 WORKDIR /usr/src/route-override
 ENV CGO_ENABLED=0
-ENV GO111MODULE=off
 RUN ./build_linux.sh
 WORKDIR /
 

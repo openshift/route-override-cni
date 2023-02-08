@@ -1,0 +1,49 @@
+on: [push, pull_request]
+name: Test
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-version: [1.17.x, 1.18.x]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Run Revive Action by pulling pre-built image
+      uses: docker://morphy/revive-action:v2
+      with:
+        exclude: "./vendor/..."
+
+    - name: Install test binaries
+      run: |
+        go install github.com/containernetworking/cni/cnitool@latest
+        go install github.com/mattn/goveralls@latest
+        go install github.com/modocache/gover@latest
+
+    - name: Test
+      run: |
+        COVERALLS=1 ./test_linux.sh
+        gover
+
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        path-to-profile: gover.coverprofile
+        flag-name: Go-${{ matrix.go }}
+        parallel: true
+
+  # notifies that all test jobs are finished.
+  finish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: shogo82148/actions-goveralls@v1
+        with:
+          parallel-finished: true

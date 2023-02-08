@@ -27,7 +27,7 @@ import (
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
-	"github.com/containernetworking/cni/pkg/types/current"
+	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/cni/pkg/version"
 	"github.com/containernetworking/plugins/pkg/ns"
 
@@ -65,9 +65,9 @@ type IPAMArgs struct {
 }
 
 /*
-type RouteOverrideArgs struct {
-	types.CommonArgs
-}
+	type RouteOverrideArgs struct {
+		types.CommonArgs
+	}
 */
 func parseConf(data []byte, envArgs string) (*RouteOverrideConfig, error) {
 	conf := RouteOverrideConfig{FlushRoutes: false}
@@ -236,7 +236,7 @@ func processRoutes(netnsname string, conf *RouteOverrideConfig) (*current.Result
 
 		// delete given gateway address
 		for _, ips := range res.IPs {
-			if ips.Version == "6" {
+			if ips.Address.IP.To4() == nil {
 				ips.Gateway = net.IPv6zero
 			} else {
 				ips.Gateway = net.IPv4zero
@@ -255,7 +255,7 @@ func processRoutes(netnsname string, conf *RouteOverrideConfig) (*current.Result
 						bytes.Equal(route.Dst.Mask, delroute.Dst.Mask) {
 						err = deleteRoute(delroute, res)
 						if err != nil {
-							fmt.Fprintf(os.Stderr, "failed to delte route %v: %v", delroute, err)
+							fmt.Fprintf(os.Stderr, "failed to delete route %v: %v", delroute, err)
 						}
 						continue NEXT
 					}
