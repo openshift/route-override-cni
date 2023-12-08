@@ -1,5 +1,5 @@
 # This dockerfile is used for building for OpenShift
-FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.20-openshift-4.15 AS rhel9
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.21-openshift-4.16 AS rhel9
 ADD . /usr/src/route-override
 WORKDIR /usr/src/route-override
 ENV CGO_ENABLED=0
@@ -7,7 +7,7 @@ ENV VERSION=rhel9 COMMIT=unset
 RUN ./build_linux.sh
 WORKDIR /
 
-FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.20-openshift-4.15 AS rhel8
+FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.21-openshift-4.16 AS rhel8
 ADD . /usr/src/route-override
 WORKDIR /usr/src/route-override
 ENV CGO_ENABLED=0
@@ -15,7 +15,7 @@ ENV VERSION=rhel8 COMMIT=unset
 RUN ./build_linux.sh
 WORKDIR /
 
-FROM registry.ci.openshift.org/ocp/builder:rhel-8-base-openshift-4.15
+FROM registry.ci.openshift.org/ocp/builder:rhel-8-base-openshift-4.16
 COPY --from=rhel8 /usr/src/route-override/bin/route-override /usr/src/route-override/rhel8/bin/route-override
 COPY --from=rhel9 /usr/src/route-override/bin/route-override /usr/src/route-override/bin/route-override
 COPY --from=rhel9 /usr/src/route-override/bin/route-override /usr/src/route-override/rhel9/bin/route-override
