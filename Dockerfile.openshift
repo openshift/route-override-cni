@@ -15,7 +15,7 @@ ENV VERSION=rhel8 COMMIT=unset
 RUN ./build_linux.sh
 WORKDIR /
 
-FROM registry.ci.openshift.org/ocp/builder:rhel-8-base-openshift-4.16
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-base-openshift-4.16
 COPY --from=rhel8 /usr/src/route-override/bin/route-override /usr/src/route-override/rhel8/bin/route-override
 COPY --from=rhel9 /usr/src/route-override/bin/route-override /usr/src/route-override/bin/route-override
 COPY --from=rhel9 /usr/src/route-override/bin/route-override /usr/src/route-override/rhel9/bin/route-override
