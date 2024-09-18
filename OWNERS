@@ -1,14 +1,16 @@
 reviewers:
   - dougbtv
-  - dcbw
   - zshi-redhat
   - fepan
   - s1061123
+  - bpickard22
+  - pliurh
 approvers:
   - dougbtv
-  - dcbw
   - zshi-redhat
   - fepan
   - s1061123
+  - bpickard22
+  - pliurh
 component: "Networking"
 subcomponent: "multus"
