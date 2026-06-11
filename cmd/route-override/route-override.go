@@ -38,17 +38,42 @@ import (
 // + only checko route/dst
 //go build ./cmd/route-override/
 
+// ECMPRoute represents a multipath route with multiple gateways
+type ECMPRoute struct {
+	Dst net.IPNet
+	GWs []net.IP
+}
+
+func (r *ECMPRoute) UnmarshalJSON(data []byte) error {
+	v := struct {
+		Dst string   `json:"dst"`
+		GWs []net.IP `json:"gws"`
+	}{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	_, dst, err := net.ParseCIDR(v.Dst)
+	if err != nil {
+		return fmt.Errorf("ecmproute: invalid dst %q: %v", v.Dst, err)
+	}
+	r.Dst = *dst
+	r.GWs = v.GWs
+	return nil
+}
+
 // RouteOverrideConfig represents the network route-override configuration
 type RouteOverrideConfig struct {
 	types.NetConf
 
 	PrevResult *current.Result `json:"-"`
 
-	FlushRoutes  bool           `json:"flushroutes,omitempty"`
-	FlushGateway bool           `json:"flushgateway,omitempty"`
-	DelRoutes    []*types.Route `json:"delroutes"`
-	AddRoutes    []*types.Route `json:"addroutes"`
-	SkipCheck    bool           `json:"skipcheck,omitempty"`
+	FlushRoutes   bool           `json:"flushroutes,omitempty"`
+	FlushGateway  bool           `json:"flushgateway,omitempty"`
+	DelRoutes     []*types.Route `json:"delroutes"`
+	AddRoutes     []*types.Route `json:"addroutes"`
+	DelECMPRoutes []*ECMPRoute   `json:"delecmproutes,omitempty"`
+	AddECMPRoutes []*ECMPRoute   `json:"addecmproutes,omitempty"`
+	SkipCheck     bool           `json:"skipcheck,omitempty"`
 
 	Args *struct {
 		A *IPAMArgs `json:"cni"`
@@ -57,11 +82,13 @@ type RouteOverrideConfig struct {
 
 // IPAMArgs represents CNI argument conventions for the plugin
 type IPAMArgs struct {
-	FlushRoutes  *bool          `json:"flushroutes,omitempty"`
-	FlushGateway *bool          `json:"flushgateway,omitempty"`
-	DelRoutes    []*types.Route `json:"delroutes,omitempty"`
-	AddRoutes    []*types.Route `json:"addroutes,omitempty"`
-	SkipCheck    *bool          `json:"skipcheck,omitempty"`
+	FlushRoutes   *bool          `json:"flushroutes,omitempty"`
+	FlushGateway  *bool          `json:"flushgateway,omitempty"`
+	DelRoutes     []*types.Route `json:"delroutes,omitempty"`
+	AddRoutes     []*types.Route `json:"addroutes,omitempty"`
+	DelECMPRoutes []*ECMPRoute   `json:"delecmproutes,omitempty"`
+	AddECMPRoutes []*ECMPRoute   `json:"addecmproutes,omitempty"`
+	SkipCheck     *bool          `json:"skipcheck,omitempty"`
 }
 
 /*
@@ -96,6 +123,14 @@ func parseConf(data []byte, envArgs string) (*RouteOverrideConfig, error) {
 
 		if conf.Args.A.SkipCheck != nil {
 			conf.SkipCheck = *conf.Args.A.SkipCheck
+		}
+
+		if conf.Args.A.DelECMPRoutes != nil {
+			conf.DelECMPRoutes = conf.Args.A.DelECMPRoutes
+		}
+
+		if conf.Args.A.AddECMPRoutes != nil {
+			conf.AddECMPRoutes = conf.Args.A.AddECMPRoutes
 		}
 
 	}
@@ -215,6 +250,48 @@ func addRoute(dev netlink.Link, route *types.Route) error {
 	})
 }
 
+func addECMPRoute(dev netlink.Link, route *ECMPRoute) error {
+	if len(route.GWs) == 0 {
+		return fmt.Errorf("addecmproutes: gws must not be empty")
+	}
+	nexthops := make([]*netlink.NexthopInfo, 0, len(route.GWs))
+	for _, gw := range route.GWs {
+		routes, err := netlink.RouteGet(gw)
+		if err != nil || len(routes) == 0 {
+			return fmt.Errorf("addecmproutes: cannot resolve interface for gw %v: %v", gw, err)
+		}
+		if routes[0].LinkIndex != dev.Attrs().Index {
+			return fmt.Errorf("addecmproutes: gw %v is not reachable via %s", gw, dev.Attrs().Name)
+		}
+		nexthops = append(nexthops, &netlink.NexthopInfo{
+			LinkIndex: routes[0].LinkIndex,
+			Gw:        gw,
+		})
+	}
+	return netlink.RouteAdd(&netlink.Route{
+		Scope:     netlink.SCOPE_UNIVERSE,
+		Dst:       &route.Dst,
+		MultiPath: nexthops,
+	})
+}
+
+func deleteECMPRoute(route *ECMPRoute) error {
+	family := netlink.FAMILY_V4
+	if route.Dst.IP.To4() == nil {
+		family = netlink.FAMILY_V6
+	}
+	routes, err := netlink.RouteListFiltered(family, &netlink.Route{Dst: &route.Dst}, netlink.RT_FILTER_DST)
+	if err != nil {
+		return err
+	}
+	for _, r := range routes {
+		if err := netlink.RouteDel(&r); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func processRoutes(netnsname string, conf *RouteOverrideConfig) (*current.Result, error) {
 	netns, err := ns.GetNS(netnsname)
 	if err != nil {
@@ -285,6 +362,20 @@ func processRoutes(netnsname string, conf *RouteOverrideConfig) (*current.Result
 			newRoutes = append(newRoutes, route)
 			if err := addRoute(dev, route); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to add route: %v: %v", route, err)
+			}
+		}
+
+		// Delete ECMP routes
+		for _, route := range conf.DelECMPRoutes {
+			if err := deleteECMPRoute(route); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to delete ECMP route %v: %v", route, err)
+			}
+		}
+
+		// Add ECMP routes
+		for _, route := range conf.AddECMPRoutes {
+			if err := addECMPRoute(dev, route); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to add ECMP route: %v: %v", route, err)
 			}
 		}
 
