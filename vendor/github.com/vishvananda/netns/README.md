@@ -23,6 +23,7 @@ import (
     "fmt"
     "net"
     "runtime"
+
     "github.com/vishvananda/netns"
 )
 
@@ -37,7 +38,6 @@ func main() {
 
     // Create a new network namespace
     newns, _ := netns.New()
-    netns.Set(newns)
     defer newns.Close()
 
     // Do something with the network namespace
