@@ -1,5 +1,5 @@
 # This dockerfile is used for building for OpenShift
-FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.24-openshift-4.21 AS rhel9
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.26-openshift-5.0 AS rhel9
 ADD . /usr/src/route-override
 WORKDIR /usr/src/route-override
 ENV CGO_ENABLED=0
@@ -7,7 +7,7 @@ ENV VERSION=rhel9 COMMIT=unset
 RUN ./build_linux.sh
 WORKDIR /
 
-FROM registry.ci.openshift.org/ocp/4.21:base-rhel9
+FROM registry.ci.openshift.org/ocp/5.0:base-rhel9
 COPY --from=rhel9 /usr/src/route-override/bin/route-override /usr/src/route-override/bin/route-override
 
 LABEL io.k8s.display-name="route override CNI" \
