@@ -44,11 +44,12 @@ type RouteOverrideConfig struct {
 
 	PrevResult *current.Result `json:"-"`
 
-	FlushRoutes  bool           `json:"flushroutes,omitempty"`
-	FlushGateway bool           `json:"flushgateway,omitempty"`
-	DelRoutes    []*types.Route `json:"delroutes"`
-	AddRoutes    []*types.Route `json:"addroutes"`
-	SkipCheck    bool           `json:"skipcheck,omitempty"`
+	FlushRoutes                  bool           `json:"flushroutes,omitempty"`
+	FlushGateway                 bool           `json:"flushgateway,omitempty"`
+	DelRoutes                    []*types.Route `json:"delroutes"`
+	AddRoutes                    []*types.Route `json:"addroutes"`
+	SkipCheck                    bool           `json:"skipcheck,omitempty"`
+	DefaultGatewayFromPrevResult bool           `json:"gwprevresult,omitempty"`
 
 	Args *struct {
 		A *IPAMArgs `json:"cni"`
@@ -57,11 +58,12 @@ type RouteOverrideConfig struct {
 
 // IPAMArgs represents CNI argument conventions for the plugin
 type IPAMArgs struct {
-	FlushRoutes  *bool          `json:"flushroutes,omitempty"`
-	FlushGateway *bool          `json:"flushgateway,omitempty"`
-	DelRoutes    []*types.Route `json:"delroutes,omitempty"`
-	AddRoutes    []*types.Route `json:"addroutes,omitempty"`
-	SkipCheck    *bool          `json:"skipcheck,omitempty"`
+	FlushRoutes                  *bool          `json:"flushroutes,omitempty"`
+	FlushGateway                 *bool          `json:"flushgateway,omitempty"`
+	DelRoutes                    []*types.Route `json:"delroutes,omitempty"`
+	AddRoutes                    []*types.Route `json:"addroutes,omitempty"`
+	SkipCheck                    *bool          `json:"skipcheck,omitempty"`
+	DefaultGatewayFromPrevResult *bool          `json:"gwprevresult,omitempty"`
 }
 
 /*
@@ -96,6 +98,10 @@ func parseConf(data []byte, envArgs string) (*RouteOverrideConfig, error) {
 
 		if conf.Args.A.SkipCheck != nil {
 			conf.SkipCheck = *conf.Args.A.SkipCheck
+		}
+
+		if conf.Args.A.DefaultGatewayFromPrevResult != nil {
+			conf.DefaultGatewayFromPrevResult = *conf.Args.A.DefaultGatewayFromPrevResult
 		}
 
 	}
@@ -282,6 +288,11 @@ func processRoutes(netnsname string, conf *RouteOverrideConfig) (*current.Result
 		// Add route
 		dev, _ := netlink.LinkByName(containerIFName)
 		for _, route := range conf.AddRoutes {
+			if conf.DefaultGatewayFromPrevResult && len(route.GW) == 0 {
+				if len(conf.PrevResult.IPs) > 0 {
+					route.GW = conf.PrevResult.IPs[0].Gateway
+				}
+			}
 			newRoutes = append(newRoutes, route)
 			if err := addRoute(dev, route); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to add route: %v: %v", route, err)

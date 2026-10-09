@@ -60,6 +60,7 @@ kubectl create -f deployments/daemonset-install.yaml
 * `delroutes`: (object, optional): list of routes add to the container namespace. Each route is a dictionary with "dst" and optional "gw" fields. If "gw" is omitted, value of "gateway" will be used.
 * `addroutes`: (object, optional): list of routes add to the container namespace. Each route is a dictionary with "dst" and optional "gw" fields. If "gw" is omitted, value of "gateway" will be used.
 * `skipcheck`: (bool, optional): true if you want to skip CNI's check command. Please set true if you will change routes after its launch
+* `gwprevresult`: (bool, optional): true if you want to use `PrevResult.IPs[0].Gateway` (if set) as the default value for AddRoutes which do not have "gw" defined
 
 ## Process Sequence
 
@@ -78,4 +79,4 @@ The following [args conventions](https://github.com/containernetworking/cni/blob
 * `flushgateway`: (bool, optional): true if you flush default route (gateway).
 * `delroutes`: (object, optional): list of routes add to the container namespace. Each route is a dictionary with "dst" and optional "gw" fields. If "gw" is omitted, value of "gateway" will be used.
 * `addroutes`: (object, optional): list of routes add to the container namespace. Each route is a dictionary with "dst" and optional "gw" fields. If "gw" is omitted, value of "gateway" will be used.
-
+* `gwprevresult`: (bool, optional): true if you want to use `PrevResult.IPs[0].Gateway` (if set) as the default value for AddRoutes which do not have "gw" defined
